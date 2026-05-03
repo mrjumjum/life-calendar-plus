@@ -1,0 +1,11 @@
+# Local vault/plugin state
+.DS_Store
+data.json
+
+# Generated debug artefacts
+*.log
+*.map
+
+# Dependency/build folders if source packaging is added later
+node_modules/
+dist/
