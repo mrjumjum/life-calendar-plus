@@ -6,7 +6,7 @@ In this plugin, *memento mori* means representing a lifespan as a week-by-week c
 
 ## Status
 
-This plugin is packaged as a standard Obsidian community plugin bundle. The current release version is `1.0.0`.
+This plugin is available from Obsidian's Community Plugins directory. The current release version is `1.0.1`.
 
 ## Screenshots
 
@@ -29,13 +29,20 @@ This plugin is packaged as a standard Obsidian community plugin bundle. The curr
 - Supports event markers from inline code block configuration or from vault notes with frontmatter.
 - Opens linked event notes from the calendar.
 - Keeps all data local to the vault.
-- Does not require `data.json` or any other local settings file in the release package.
+- Renders directly from explicit `life-calendar` code blocks in notes.
 
 ## Installation
 
+Install **Life Calendar** from Obsidian's Community Plugins directory:
+
+1. Open **Settings → Community plugins** in Obsidian.
+2. Make sure community plugins are enabled.
+3. Select **Browse**, search for **Life Calendar**, and install it.
+4. Enable **Life Calendar** after installation.
+
 ### Manual installation
 
-Until the plugin is available through Obsidian's community plugin directory:
+Manual installation is only needed for local development or testing unreleased builds:
 
 1. Download the release assets for the plugin.
 2. Create `.obsidian/plugins/life-calendar/` inside the target vault if it does not already exist.
@@ -50,16 +57,16 @@ Until the plugin is available through Obsidian's community plugin directory:
 
 ## Usage
 
-Add a `life-calendar` code block to any note:
+Use the command palette command **Life Calendar: Insert life calendar block** to add a pre-populated `life-calendar` block to any note. The block is the source of truth for that calendar:
 
 ````markdown
 ```life-calendar
 title: Life calendar
 birthDate: YYYY-MM-DD
 lifeExpectancy: 85
+showLabelsEvery: 5
+showDecadeGaps: true
 includeVaultEvents: true
-visibleCategories: []
-hiddenCategories: []
 phases:
   - label: Education chapter
     category: education
@@ -76,23 +83,25 @@ phases:
     startAge: 55
     endAge: 65
     description: Example independent, advisory, or portfolio work phase.
-  - label: Example dated chapter
+  - label: Later-life chapter
     category: life
-    startDate: 2030-01-01
-    endDate: 2032-12-31
-    paletteIndex: 3
-    description: Date-based ranges are useful for specific life chapters.
-# Add enabled: false to suppress one phase.
-# Add colour: "#7a5aa6" to any phase if you want to override the default palette.
+    startAge: 65
+    endAge: 85
+    description: Example later-life planning phase.
+# Optional category filters:
+# visibleCategories: [life, work]
+# hiddenCategories: [education]
+# Optional inline events can sit alongside vault-backed event notes.
+# events:
+#   - title: Example event
+#     date: 2026-05-03
+#     link: [[Example Life Event]]
 ```
 ````
 
-The command palette also includes:
+There is no separate global calendar view. Each calendar is managed explicitly in the note that contains its `life-calendar` block.
 
-- `Life Calendar: Open life calendar`
-- `Life Calendar: Insert life calendar block`
-
-The ribbon icon opens a dedicated Life Calendar view using the plugin settings.
+The plugin settings define small defaults: age label interval, decade spacing, and the frontmatter fields used for vault-backed event notes. These can still be overridden in an individual block with `showLabelsEvery`, `showDecadeGaps`, `eventProperty`, `eventDateProperty`, and `eventTitleProperty`.
 
 ## Code block options
 
@@ -101,15 +110,15 @@ The ribbon icon opens a dedicated Life Calendar view using the plugin settings.
 | `title` | string | Calendar title shown above the grid. |
 | `birthDate` | `YYYY-MM-DD` | Date used to calculate completed weeks and age rows. |
 | `lifeExpectancy` | number | Number of age rows to render. |
-| `showLabelsEvery` | number | Interval for right-hand age labels. Defaults to `5`. |
-| `showDecadeGaps` | boolean | Adds larger spacing between decades when enabled. |
+| `showLabelsEvery` | number | Interval for right-hand age labels. Defaults to the plugin setting, initially `5`. |
+| `showDecadeGaps` | boolean | Adds larger spacing between decades when enabled. Defaults to the plugin setting, initially `true`. |
 | `includeVaultEvents` | boolean | Includes event notes found in the vault. |
-| `eventProperty` | string | Frontmatter property that marks event notes. Defaults to `life-calendar-event`. |
-| `eventDateProperty` | string | Frontmatter property used as the event date. Defaults to `date`. |
-| `eventTitleProperty` | string | Frontmatter property used as the event title. Defaults to `title`. |
+| `eventProperty` | string | Frontmatter property that marks event notes. Defaults to the plugin setting, initially `life-calendar-event`. |
+| `eventDateProperty` | string | Frontmatter property used as the event date. Defaults to the plugin setting, initially `date`. |
+| `eventTitleProperty` | string | Frontmatter property used as the event title. Defaults to the plugin setting, initially `title`. |
+| `phases` | list | Planning phases to render on the calendar. |
 | `visibleCategories` | list | Optional allow-list of phase categories to render. |
 | `hiddenCategories` | list | Optional block-list of phase categories to hide. |
-| `phases` | list | Planning phases to render on the calendar. |
 | `events` | list | Inline events to render as linked or unlinked markers. |
 
 ## Planning phases
@@ -182,6 +191,7 @@ A public release should include these files at the repository root:
 - `main.js`
 - `styles.css`
 - `README.md`
+- `CHANGELOG.md`
 - `versions.json`
 - `LICENSE`
 

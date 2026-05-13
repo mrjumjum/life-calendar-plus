@@ -1,6 +1,6 @@
 # Release checklist
 
-Current release version: `1.0.0`
+Current release version: `1.0.1`
 
 ## GitHub release assets
 
@@ -15,12 +15,13 @@ Attach these files to the GitHub release that matches the manifest version:
 Keep these files at the repository root:
 
 - `README.md`
+- `CHANGELOG.md`
 - `LICENSE`
 - `versions.json`
 
-## Submission checks
+## Release checks
 
-Before submitting to the Obsidian community plugins review process:
+Before publishing a release:
 
 1. Confirm `manifest.json` and the git tag use the same version.
 2. Confirm `versions.json` maps that version to the minimum supported Obsidian app version.

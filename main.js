@@ -1,19 +1,16 @@
 const {
   Plugin,
-  ItemView,
   PluginSettingTab,
   Setting,
   Notice,
   Menu,
   parseYaml,
-  setTooltip,
-  debounce
+  setTooltip
 } = require("obsidian");
 
-const VIEW_TYPE_LIFE_CALENDAR = "life-calendar-view";
 const WEEKS_PER_YEAR = 52;
 
-const DEFAULT_PHASES = [
+const EXAMPLE_PHASES = [
   {
     label: "Education chapter",
     category: "education",
@@ -44,36 +41,29 @@ const DEFAULT_PHASES = [
   }
 ];
 
-const DEFAULT_SETTINGS = {
+const DEFAULT_PLUGIN_SETTINGS = {
+  showLabelsEvery: 5,
+  showDecadeGaps: true,
+  eventProperty: "life-calendar-event",
+  eventDateProperty: "date",
+  eventTitleProperty: "title"
+};
+
+const DEFAULT_BLOCK_CONFIG = {
   title: "Life calendar",
   birthDate: "",
   lifeExpectancy: 85,
-  showLabelsEvery: 5,
-  showDecadeGaps: true,
   includeVaultEvents: true,
-  eventProperty: "life-calendar-event",
-  eventDateProperty: "date",
-  eventTitleProperty: "title",
+  ...DEFAULT_PLUGIN_SETTINGS,
   visibleCategories: [],
   hiddenCategories: [],
-  phases: DEFAULT_PHASES
+  phases: [],
+  events: []
 };
 
 module.exports = class LifeCalendarPlugin extends Plugin {
   async onload() {
     await this.loadSettings();
-
-    this.registerView(VIEW_TYPE_LIFE_CALENDAR, (leaf) => new LifeCalendarView(leaf, this));
-
-    this.addRibbonIcon("calendar-days", "Open life calendar", () => {
-      this.activateView();
-    });
-
-    this.addCommand({
-      id: "open-life-calendar",
-      name: "Open life calendar",
-      callback: () => this.activateView()
-    });
 
     this.addCommand({
       id: "insert-life-calendar-block",
@@ -87,70 +77,38 @@ module.exports = class LifeCalendarPlugin extends Plugin {
       await this.renderCodeBlock(source, el, ctx);
     });
 
-
     this.addSettingTab(new LifeCalendarSettingTab(this.app, this));
-
-    this.refreshViewsDebounced = debounce(() => this.refreshViews(), 250, true);
-    this.registerEvent(this.app.metadataCache.on("changed", () => this.refreshViewsDebounced()));
-    this.registerEvent(this.app.vault.on("rename", () => this.refreshViewsDebounced()));
-    this.registerEvent(this.app.vault.on("delete", () => this.refreshViewsDebounced()));
-  }
-
-  onunload() {
-    this.app.workspace.detachLeavesOfType(VIEW_TYPE_LIFE_CALENDAR);
   }
 
   async loadSettings() {
     const saved = await this.loadData();
-    this.settings = mergeSettings(DEFAULT_SETTINGS, saved || {});
+    this.settings = normalisePluginSettings(saved || {});
   }
 
   async saveSettings() {
     await this.saveData(this.settings);
-    await this.refreshViews();
-  }
-
-  async activateView() {
-    const { workspace } = this.app;
-    let leaf = workspace.getLeavesOfType(VIEW_TYPE_LIFE_CALENDAR)[0];
-
-    if (!leaf) {
-      leaf = workspace.getLeaf(true);
-      await leaf.setViewState({ type: VIEW_TYPE_LIFE_CALENDAR, active: true });
-    }
-
-    workspace.revealLeaf(leaf);
-  }
-
-  async refreshViews() {
-    const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_LIFE_CALENDAR);
-    for (const leaf of leaves) {
-      if (leaf.view instanceof LifeCalendarView) {
-        await leaf.view.render();
-      }
-    }
   }
 
   async renderCodeBlock(source, el, ctx) {
     el.empty();
     const sourcePath = ctx && ctx.sourcePath ? ctx.sourcePath : "";
 
-    let inlineConfig = {};
+    let blockConfig = {};
     try {
-      inlineConfig = parseSourceConfig(source);
+      blockConfig = parseSourceConfig(source);
     } catch (error) {
       this.renderError(el, "Could not parse life calendar configuration.", error.message);
       return;
     }
 
-    await this.renderCalendar(el, inlineConfig, sourcePath);
+    await this.renderCalendar(el, blockConfig, sourcePath);
   }
 
-  async renderCalendar(containerEl, inlineConfig = {}, sourcePath = "") {
+  async renderCalendar(containerEl, blockConfig = {}, sourcePath = "") {
     containerEl.empty();
     containerEl.addClass("life-calendar-container");
 
-    const config = normaliseCalendarConfig(mergeSettings(this.settings, inlineConfig));
+    const config = normaliseCalendarConfig(blockConfig, this.settings);
     const birthDate = parseDateOnly(config.birthDate);
 
     if (!birthDate) {
@@ -274,12 +232,8 @@ module.exports = class LifeCalendarPlugin extends Plugin {
     const setup = containerEl.createDiv({ cls: "life-calendar-setup" });
     setup.createEl("h3", { text: config.title || "Life calendar" });
     setup.createEl("p", {
-      text: "Set a date of birth in the Life Calendar settings, or add birthDate: YYYY-MM-DD to the code block."
+      text: "Add birthDate: YYYY-MM-DD to this life-calendar code block."
     });
-
-    const actions = setup.createDiv({ cls: "life-calendar-setup-actions" });
-    const settingsButton = actions.createEl("button", { text: "Open settings" });
-    settingsButton.addEventListener("click", () => this.openSettings());
 
     const help = setup.createEl("details");
     help.createEl("summary", { text: "Example code block" });
@@ -290,17 +244,6 @@ module.exports = class LifeCalendarPlugin extends Plugin {
     const error = containerEl.createDiv({ cls: "life-calendar-error" });
     error.createEl("strong", { text: title });
     if (detail) error.createEl("p", { text: detail });
-  }
-
-  openSettings() {
-    if (this.app.setting && typeof this.app.setting.open === "function") {
-      this.app.setting.open();
-      if (typeof this.app.setting.openTabById === "function") {
-        this.app.setting.openTabById(this.manifest.id);
-      }
-    } else {
-      new Notice("Open Settings, then Community plugins, then Life Calendar.");
-    }
   }
 
   collectEvents(config, sourcePath, birthDate) {
@@ -401,41 +344,11 @@ module.exports = class LifeCalendarPlugin extends Plugin {
   }
 
   createExampleCodeBlock() {
-    const birthDate = this.settings.birthDate || "YYYY-MM-DD";
-    const phases = phasesToYaml(this.settings.phases && this.settings.phases.length ? this.settings.phases : DEFAULT_PHASES);
+    const phases = phasesToYaml(EXAMPLE_PHASES);
 
-    return `\`\`\`life-calendar\ntitle: Life calendar\nbirthDate: ${birthDate}\nlifeExpectancy: ${this.settings.lifeExpectancy || 85}\nincludeVaultEvents: true\nphases:\n${phases}# Optional inline events can sit alongside vault-backed event notes.\n# events:\n#   - title: Example event\n#     date: 2026-05-03\n#     link: [[Example Life Event]]\n\`\`\``;
+    return `\`\`\`life-calendar\ntitle: Life calendar\nbirthDate: YYYY-MM-DD\nlifeExpectancy: 85\nshowLabelsEvery: 5\nshowDecadeGaps: true\nincludeVaultEvents: true\nphases:\n${phases}# Optional category filters:\n# visibleCategories: [life, work]\n# hiddenCategories: [education]\n# Optional inline events can sit alongside vault-backed event notes.\n# events:\n#   - title: Example event\n#     date: 2026-05-03\n#     link: [[Example Life Event]]\n\`\`\``;
   }
 };
-
-class LifeCalendarView extends ItemView {
-  constructor(leaf, plugin) {
-    super(leaf);
-    this.plugin = plugin;
-  }
-
-  getViewType() {
-    return VIEW_TYPE_LIFE_CALENDAR;
-  }
-
-  getDisplayText() {
-    return "Life Calendar";
-  }
-
-  getIcon() {
-    return "calendar-days";
-  }
-
-  async onOpen() {
-    await this.render();
-  }
-
-  async render() {
-    const container = this.containerEl.children[1];
-    container.empty();
-    await this.plugin.renderCalendar(container, {}, "");
-  }
-}
 
 class LifeCalendarSettingTab extends PluginSettingTab {
   constructor(app, plugin) {
@@ -446,54 +359,18 @@ class LifeCalendarSettingTab extends PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.addClass("life-calendar-settings");
 
     containerEl.createEl("h2", { text: "Life Calendar" });
     containerEl.createEl("p", {
-      text: "Configure the default life-in-weeks calendar. Individual code blocks can override these values."
+      text: "Calendars are configured in life-calendar code blocks. These settings define small defaults that individual blocks can still override."
     });
 
     new Setting(containerEl)
-      .setName("Calendar title")
-      .setDesc("Default title shown above the calendar.")
-      .addText((text) => text
-        .setValue(this.plugin.settings.title)
-        .onChange(async (value) => {
-          this.plugin.settings.title = value || DEFAULT_SETTINGS.title;
-          await this.plugin.saveSettings();
-        }));
-
-    new Setting(containerEl)
-      .setName("Date of birth")
-      .setDesc("Use YYYY-MM-DD. This is needed to darken lived weeks accurately.")
-      .addText((text) => text
-        .setPlaceholder("YYYY-MM-DD")
-        .setValue(this.plugin.settings.birthDate || "")
-        .onChange(async (value) => {
-          this.plugin.settings.birthDate = value.trim();
-          await this.plugin.saveSettings();
-        }));
-
-    new Setting(containerEl)
-      .setName("Life expectancy")
-      .setDesc("Number of age-years to render.")
-      .addText((text) => text
-        .setPlaceholder("85")
-        .setValue(String(this.plugin.settings.lifeExpectancy || 85))
-        .onChange(async (value) => {
-          const parsed = Number.parseInt(value, 10);
-          if (Number.isFinite(parsed) && parsed > 0 && parsed <= 130) {
-            this.plugin.settings.lifeExpectancy = parsed;
-            await this.plugin.saveSettings();
-          }
-        }));
-
-    new Setting(containerEl)
       .setName("Age labels")
-      .setDesc("Show right-hand labels every N completed age-years.")
+      .setDesc("Default interval for right-hand age labels. Individual blocks can override this with showLabelsEvery.")
       .addText((text) => text
-        .setPlaceholder("5")
-        .setValue(String(this.plugin.settings.showLabelsEvery || 5))
+        .setPlaceholder(String(DEFAULT_PLUGIN_SETTINGS.showLabelsEvery))
+        .setValue(String(this.plugin.settings.showLabelsEvery || DEFAULT_PLUGIN_SETTINGS.showLabelsEvery))
         .onChange(async (value) => {
           const parsed = Number.parseInt(value, 10);
           if (Number.isFinite(parsed) && parsed > 0 && parsed <= 25) {
@@ -504,32 +381,22 @@ class LifeCalendarSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Decade spacing")
-      .setDesc("Add visual space between decade rows.")
+      .setDesc("Add visual space between decade rows by default. Individual blocks can override this with showDecadeGaps.")
       .addToggle((toggle) => toggle
-        .setValue(!!this.plugin.settings.showDecadeGaps)
+        .setValue(this.plugin.settings.showDecadeGaps !== false)
         .onChange(async (value) => {
           this.plugin.settings.showDecadeGaps = value;
           await this.plugin.saveSettings();
         }));
 
     new Setting(containerEl)
-      .setName("Vault-backed events")
-      .setDesc("Read event notes from frontmatter and place them on the calendar.")
-      .addToggle((toggle) => toggle
-        .setValue(!!this.plugin.settings.includeVaultEvents)
-        .onChange(async (value) => {
-          this.plugin.settings.includeVaultEvents = value;
-          await this.plugin.saveSettings();
-        }));
-
-    new Setting(containerEl)
       .setName("Event marker property")
-      .setDesc("A note is included when this frontmatter property is truthy. type: life-event also works.")
+      .setDesc("A note is included when this frontmatter property is truthy. type: life-event and #life-calendar/event also work.")
       .addText((text) => text
-        .setPlaceholder("life-calendar-event")
-        .setValue(this.plugin.settings.eventProperty || DEFAULT_SETTINGS.eventProperty)
+        .setPlaceholder(DEFAULT_PLUGIN_SETTINGS.eventProperty)
+        .setValue(this.plugin.settings.eventProperty || DEFAULT_PLUGIN_SETTINGS.eventProperty)
         .onChange(async (value) => {
-          this.plugin.settings.eventProperty = value.trim() || DEFAULT_SETTINGS.eventProperty;
+          this.plugin.settings.eventProperty = value.trim() || DEFAULT_PLUGIN_SETTINGS.eventProperty;
           await this.plugin.saveSettings();
         }));
 
@@ -537,78 +404,23 @@ class LifeCalendarSettingTab extends PluginSettingTab {
       .setName("Event date property")
       .setDesc("Frontmatter property that contains the event date.")
       .addText((text) => text
-        .setPlaceholder("date")
-        .setValue(this.plugin.settings.eventDateProperty || DEFAULT_SETTINGS.eventDateProperty)
+        .setPlaceholder(DEFAULT_PLUGIN_SETTINGS.eventDateProperty)
+        .setValue(this.plugin.settings.eventDateProperty || DEFAULT_PLUGIN_SETTINGS.eventDateProperty)
         .onChange(async (value) => {
-          this.plugin.settings.eventDateProperty = value.trim() || DEFAULT_SETTINGS.eventDateProperty;
+          this.plugin.settings.eventDateProperty = value.trim() || DEFAULT_PLUGIN_SETTINGS.eventDateProperty;
           await this.plugin.saveSettings();
         }));
 
     new Setting(containerEl)
       .setName("Event title property")
-      .setDesc("Frontmatter property used as the marker title before falling back to note title.")
+      .setDesc("Frontmatter property used as the marker title before falling back to the note title.")
       .addText((text) => text
-        .setPlaceholder("title")
-        .setValue(this.plugin.settings.eventTitleProperty || DEFAULT_SETTINGS.eventTitleProperty)
+        .setPlaceholder(DEFAULT_PLUGIN_SETTINGS.eventTitleProperty)
+        .setValue(this.plugin.settings.eventTitleProperty || DEFAULT_PLUGIN_SETTINGS.eventTitleProperty)
         .onChange(async (value) => {
-          this.plugin.settings.eventTitleProperty = value.trim() || DEFAULT_SETTINGS.eventTitleProperty;
+          this.plugin.settings.eventTitleProperty = value.trim() || DEFAULT_PLUGIN_SETTINGS.eventTitleProperty;
           await this.plugin.saveSettings();
         }));
-
-    new Setting(containerEl)
-      .setName("Visible phase categories")
-      .setDesc("Optional comma-separated allow-list, for example work, life. Leave blank to show all categories.")
-      .addText((text) => text
-        .setPlaceholder("work, life")
-        .setValue(normaliseStringArray(this.plugin.settings.visibleCategories).join(", "))
-        .onChange(async (value) => {
-          this.plugin.settings.visibleCategories = normaliseStringArray(value);
-          await this.plugin.saveSettings();
-        }));
-
-    new Setting(containerEl)
-      .setName("Hidden phase categories")
-      .setDesc("Optional comma-separated block-list. Useful for hiding categories by default.")
-      .addText((text) => text
-        .setPlaceholder("sports, experiments")
-        .setValue(normaliseStringArray(this.plugin.settings.hiddenCategories).join(", "))
-        .onChange(async (value) => {
-          this.plugin.settings.hiddenCategories = normaliseStringArray(value);
-          await this.plugin.saveSettings();
-        }));
-
-    const phasesSetting = new Setting(containerEl)
-      .setName("Planning phases")
-      .setDesc("JSON array. Each phase supports label, optional colour/color override, description, plus either startAge/endAge or startDate/endDate.")
-      .addTextArea((text) => {
-        text.inputEl.rows = 12;
-        text.inputEl.addClass("life-calendar-settings-textarea");
-        text.setValue(JSON.stringify(this.plugin.settings.phases || DEFAULT_PHASES, null, 2));
-        text.onChange(async (value) => {
-          try {
-            const parsed = JSON.parse(value);
-            if (!Array.isArray(parsed)) return;
-            this.plugin.settings.phases = normalisePhases(parsed);
-            text.inputEl.removeClass("is-invalid");
-            await this.plugin.saveSettings();
-          } catch (_error) {
-            text.inputEl.addClass("is-invalid");
-          }
-        });
-      });
-
-    phasesSetting.addButton((button) => button
-      .setButtonText("Reset")
-      .onClick(async () => {
-        this.plugin.settings.phases = clone(DEFAULT_PHASES);
-        await this.plugin.saveSettings();
-        this.display();
-      }));
-
-    containerEl.createEl("h3", { text: "Event note example" });
-    containerEl.createEl("pre", {
-      text: "---\nlife-calendar-event: true\ndate: 2026-05-03\ntitle: Example event\ncategory: planning\n---\n"
-    });
   }
 }
 
@@ -626,34 +438,35 @@ function parseSourceConfig(source) {
   return parsed;
 }
 
-function mergeSettings(base, override) {
-  const merged = Object.assign({}, clone(base), clone(override || {}));
-  if (override && Object.prototype.hasOwnProperty.call(override, "phases")) {
-    merged.phases = clone(override.phases);
-  } else if (base && base.phases) {
-    merged.phases = clone(base.phases);
-  }
-  if (override && Object.prototype.hasOwnProperty.call(override, "events")) {
-    merged.events = clone(override.events);
-  }
-  return merged;
+function normalisePluginSettings(settings) {
+  const normalised = Object.assign({}, DEFAULT_PLUGIN_SETTINGS, settings || {});
+  normalised.showLabelsEvery = clampInteger(normalised.showLabelsEvery, 1, 25, DEFAULT_PLUGIN_SETTINGS.showLabelsEvery);
+  normalised.showDecadeGaps = normalised.showDecadeGaps !== false;
+  normalised.eventProperty = String(normalised.eventProperty || DEFAULT_PLUGIN_SETTINGS.eventProperty);
+  normalised.eventDateProperty = String(normalised.eventDateProperty || DEFAULT_PLUGIN_SETTINGS.eventDateProperty);
+  normalised.eventTitleProperty = String(normalised.eventTitleProperty || DEFAULT_PLUGIN_SETTINGS.eventTitleProperty);
+  return normalised;
 }
 
-function normaliseCalendarConfig(config) {
-  const normalised = mergeSettings(DEFAULT_SETTINGS, config || {});
-  normalised.lifeExpectancy = clampInteger(normalised.lifeExpectancy, 1, 130, DEFAULT_SETTINGS.lifeExpectancy);
-  normalised.showLabelsEvery = clampInteger(normalised.showLabelsEvery, 1, 25, DEFAULT_SETTINGS.showLabelsEvery);
+function normaliseCalendarConfig(blockConfig, pluginSettings = {}) {
+  const config = blockConfig && typeof blockConfig === "object" ? blockConfig : {};
+  const defaults = Object.assign({}, DEFAULT_BLOCK_CONFIG, pluginSettings || {});
+  const normalised = Object.assign({}, defaults, config);
+
+  normalised.phases = Array.isArray(config.phases) ? clone(config.phases) : clone(defaults.phases);
+  normalised.events = Array.isArray(config.events) ? clone(config.events) : clone(defaults.events);
+  normalised.lifeExpectancy = clampInteger(normalised.lifeExpectancy, 1, 130, defaults.lifeExpectancy);
+  normalised.showLabelsEvery = clampInteger(normalised.showLabelsEvery, 1, 25, defaults.showLabelsEvery);
   normalised.showDecadeGaps = normalised.showDecadeGaps !== false;
   normalised.includeVaultEvents = normalised.includeVaultEvents !== false;
   normalised.visibleCategories = normaliseStringArray(normalised.visibleCategories);
   normalised.hiddenCategories = normaliseStringArray(normalised.hiddenCategories);
   normalised.phases = filterPhasesByConfig(normalisePhases(normalised.phases), normalised);
-  if (!Array.isArray(normalised.events)) normalised.events = [];
   return normalised;
 }
 
 function normalisePhases(phases) {
-  if (!Array.isArray(phases)) return clone(DEFAULT_PHASES);
+  if (!Array.isArray(phases)) return [];
   return phases
     .map((phase, index) => {
       if (!phase || typeof phase !== "object") return null;
@@ -728,7 +541,7 @@ function normaliseInlineEvent(eventConfig, sourcePath) {
 }
 
 function isLifeCalendarEvent(frontmatter, config) {
-  const configuredProperty = config.eventProperty || DEFAULT_SETTINGS.eventProperty;
+  const configuredProperty = config.eventProperty || DEFAULT_PLUGIN_SETTINGS.eventProperty;
   if (Object.prototype.hasOwnProperty.call(frontmatter, configuredProperty) && Boolean(frontmatter[configuredProperty])) {
     return true;
   }

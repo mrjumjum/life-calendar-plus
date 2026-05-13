@@ -312,23 +312,9 @@ button.life-calendar-week:focus-visible {
   margin-block: 0 0.5rem;
 }
 
-.life-calendar-setup-actions {
-  margin-block: 0.75rem;
-}
-
-.life-calendar-setup pre,
-.life-calendar-settings pre {
+.life-calendar-setup pre {
   white-space: pre-wrap;
   overflow-x: auto;
-}
-
-.life-calendar-settings-textarea {
-  width: min(42rem, 100%);
-  font-family: var(--font-monospace);
-}
-
-.life-calendar-settings-textarea.is-invalid {
-  border-color: var(--text-error);
 }
 
 @media (max-width: 700px) {
