@@ -1,10 +1,10 @@
 {
-  "id": "life-calendar",
-  "name": "Life Calendar",
-  "version": "1.0.1",
+  "id": "life-calendar-plus",
+  "name": "Life Calendar Plus",
+  "version": "1.1.0",
   "minAppVersion": "1.5.0",
-  "description": "Render a life-in-weeks (memento mori) calendar with work, life, and other planning phases, plus linked key events.",
-  "author": "Paulo Ferreira",
-  "authorUrl": "https://pauloferreira.me",
+  "description": "Based on paulobsf's Life Calendar: life-in-weeks calendar with phases and linked events, plus emoji on event weeks and a fixed insert-block command.",
+  "author": "mrjumjum (based on Life Calendar by Paulo Ferreira)",
+  "authorUrl": "https://github.com/mrjumjum/life-calendar-plus",
   "isDesktopOnly": false
 }

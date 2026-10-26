@@ -1,33 +1,7 @@
 # Release checklist
 
-Current release version: `1.0.1`
+1. `npm run release -- <version>`: bumps `manifest.json`, `package.json`, `package-lock.json` and `versions.json`, runs `npm run check` and `npm test`, commits and creates the tag `<version>` (no `v` prefix).
+2. `git push origin main <version>`: `.github/workflows/release.yml` verifies tag == manifest version, re-runs the checks and publishes a GitHub release with `main.js`, `manifest.json` and `styles.css` (the files BRAT installs).
+3. Add a `CHANGELOG.md` entry before step 1.
 
-## GitHub release assets
-
-Attach these files to the GitHub release that matches the manifest version:
-
-- `manifest.json`
-- `main.js`
-- `styles.css`
-
-## Repository files
-
-Keep these files at the repository root:
-
-- `README.md`
-- `CHANGELOG.md`
-- `LICENSE`
-- `versions.json`
-
-## Release checks
-
-Before publishing a release:
-
-1. Confirm `manifest.json` and the git tag use the same version.
-2. Confirm `versions.json` maps that version to the minimum supported Obsidian app version.
-3. Confirm local vault state is not committed:
-   - `data.json`
-   - `.DS_Store`
-   - private screenshots or notes
-4. Confirm the release screenshots are generic and do not expose private vault content.
-5. Confirm the plugin still makes no network requests and uses no telemetry.
+Never push upstream's `1.0.0` / `1.0.1` tags to this repository (the workflow refuses them because their manifest id is `life-calendar`).

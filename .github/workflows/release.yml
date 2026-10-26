@@ -1,0 +1,51 @@
+name: Release
+
+# Push a tag equal to manifest.json's version (no "v" prefix), e.g. 1.2.0.
+# main.js is hand-written CommonJS (no bundler), so "build" = check + test.
+on:
+  push:
+    tags:
+      - "*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.x"
+          cache: npm
+
+      - name: Verify tag matches manifest
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          id="$(node -p "require('./manifest.json').id")"
+          version="$(node -p "require('./manifest.json').version")"
+          if [ "$id" != "life-calendar-plus" ]; then
+            echo "manifest id is '$id', not life-calendar-plus (upstream tag?); refusing to release." >&2
+            exit 1
+          fi
+          if [ "$tag" != "$version" ]; then
+            echo "Tag $tag does not match manifest.json version $version" >&2
+            exit 1
+          fi
+
+      - name: Install, typecheck and test
+        run: |
+          npm ci
+          npm run check
+          npm test
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
+            main.js manifest.json styles.css

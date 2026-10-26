@@ -1,63 +1,48 @@
-# Life Calendar
+# Life Calendar Plus
 
-Life Calendar is an Obsidian plugin for rendering a life-in-weeks calendar. It shows completed weeks, the current week, planning phases, category filters, and linked events from either inline code block configuration or vault notes.
+An Obsidian plugin that renders a life-in-weeks (*memento mori*) calendar from a `life-calendar` code block: one row per year, 52 squares per row, with completed weeks, the current week, planning phases and linked events.
 
-In this plugin, *memento mori* means representing a lifespan as a week-by-week calendar. The format is useful because it turns abstract dates and age ranges into a single visual map: completed weeks, the current week, future planning phases, and dated events can all be read in context.
+**Life Calendar Plus is based on [Life Calendar](https://github.com/paulobsf/obsidian-life-calendar) by Paulo Ferreira** (MIT). All of the calendar logic, phases, categories and event handling come from that plugin. This fork adds a few changes on top.
 
-## Status
+## What it adds compared with Life Calendar
 
-This plugin is available from Obsidian's Community Plugins directory. The current release version is `1.0.1`.
+- **Emoji on event weeks.** A week that has an event shows that event's emoji on top of the phase colour, for example `💍 Wedding` or `✈️ First flight`. Weeks with events but no emoji show a `•`.
+- **More reliable insert command.** **Life Calendar Plus: Insert life calendar block** is registered before settings are loaded. A broken or conflicted `data.json` no longer stops the command, the code block renderer or the settings tab from loading. The block it inserts always starts on its own line.
+- **Optional `emoji` field on events.** Set it in a note's frontmatter or on an inline event to choose the emoji yourself.
+- **Inline events sorted by date.** Inline-only calendars (`includeVaultEvents: false`) now sort their events by date, so "the first event in a week" is well defined.
+
+It uses its own plugin id (`life-calendar-plus`), so the Community Plugins store never replaces it with the original. It renders the same `life-calendar` code blocks, so your existing notes keep working. **Disable the original Life Calendar plugin while you use this one.** Both plugins try to render `life-calendar` blocks, and only one can.
 
 ## Screenshots
+
+These screenshots come from the original plugin. Event weeks in this fork show emoji instead of a small dot.
 
 | Light mode | Dark mode |
 | --- | --- |
 | ![Life Calendar in Obsidian light mode](screenshots/light-bg.png) | ![Life Calendar in Obsidian dark mode](screenshots/dark-bg.png) |
 
-## Features
-
-- Renders one row per age-year and 52 squares per row.
-- Shows completed weeks, the current week, and remaining weeks to the configured planning horizon.
-- Uses responsive 52-week rows to avoid routine horizontal scrolling.
-- Shows age labels on the right-hand side at a configurable interval.
-- Adds optional visual spacing between decades.
-- Supports planning phases by age range or date range.
-- Supports phase categories such as life, work, education, and sport.
-- Adds in-calendar category toggles when multiple categories are visible.
-- Cycles phases through a 12-colour palette tuned for light and dark mode.
-- Supports optional phase colour overrides.
-- Supports event markers from inline code block configuration or from vault notes with frontmatter.
-- Opens linked event notes from the calendar.
-- Keeps all data local to the vault.
-- Renders directly from explicit `life-calendar` code blocks in notes.
-
 ## Installation
 
-Install **Life Calendar** from Obsidian's Community Plugins directory:
+### With BRAT (desktop and iPhone/iPad/Android)
 
-1. Open **Settings → Community plugins** in Obsidian.
-2. Make sure community plugins are enabled.
-3. Select **Browse**, search for **Life Calendar**, and install it.
-4. Enable **Life Calendar** after installation.
+1. Install and enable **BRAT** (Obsidian42 - BRAT) from **Settings → Community plugins → Browse**.
+2. Open **Settings → BRAT → Add beta plugin**.
+3. Enter `mrjumjum/life-calendar-plus` and pick the latest version.
+4. Enable **Life Calendar Plus** under **Settings → Community plugins**. Disable the original **Life Calendar** if it is installed.
 
-### Manual installation
+BRAT downloads `main.js`, `manifest.json` and `styles.css` from the latest GitHub release and can keep the plugin updated.
 
-Manual installation is only needed for local development or testing unreleased builds:
+### Manual
 
-1. Download the release assets for the plugin.
-2. Create `.obsidian/plugins/life-calendar/` inside the target vault if it does not already exist.
-3. Copy these files into that folder:
-   - `manifest.json`
-   - `main.js`
-   - `styles.css`
-4. Restart Obsidian or reload community plugins.
-5. Enable **Life Calendar** in **Settings → Community plugins**.
+1. Download `main.js`, `manifest.json` and `styles.css` from the latest [release](https://github.com/mrjumjum/life-calendar-plus/releases).
+2. Copy them into `<vault>/.obsidian/plugins/life-calendar-plus/`.
+3. Reload Obsidian and enable **Life Calendar Plus** under **Settings → Community plugins**.
 
-`versions.json` is required for the plugin repository and release process, but it does not need to be copied manually into a local vault installation.
+The plugin works on desktop and on mobile (`isDesktopOnly: false`).
 
 ## Usage
 
-Use the command palette command **Life Calendar: Insert life calendar block** to add a pre-populated `life-calendar` block to any note. The block is the source of truth for that calendar:
+Open a note in **editing mode** (Live Preview or Source mode) and run **Life Calendar Plus: Insert life calendar block** from the command palette. Like every editor command in Obsidian, it only appears in the palette while a Markdown editor is focused, not in Reading view. The command inserts:
 
 ````markdown
 ```life-calendar
@@ -67,132 +52,120 @@ lifeExpectancy: 85
 showLabelsEvery: 5
 showDecadeGaps: true
 includeVaultEvents: true
-phases:
-  - label: Education chapter
-    category: education
-    startAge: 18
-    endAge: 22
-    description: Example education phase.
-  - label: Career chapter
-    category: work
-    startAge: 22
-    endAge: 55
-    description: Example primary career phase.
-  - label: Portfolio chapter
-    category: work
-    startAge: 55
-    endAge: 65
-    description: Example independent, advisory, or portfolio work phase.
-  - label: Later-life chapter
-    category: life
-    startAge: 65
-    endAge: 85
-    description: Example later-life planning phase.
-# Optional category filters:
-# visibleCategories: [life, work]
-# hiddenCategories: [education]
-# Optional inline events can sit alongside vault-backed event notes.
-# events:
-#   - title: Example event
-#     date: 2026-05-03
-#     link: [[Example Life Event]]
 ```
 ````
 
-There is no separate global calendar view. Each calendar is managed explicitly in the note that contains its `life-calendar` block.
+Replace `YYYY-MM-DD` with your birth date. A fuller example with phases and inline events:
 
-The plugin settings define small defaults: age label interval, decade spacing, and the frontmatter fields used for vault-backed event notes. These can still be overridden in an individual block with `showLabelsEvery`, `showDecadeGaps`, `eventProperty`, `eventDateProperty`, and `eventTitleProperty`.
+````markdown
+```life-calendar
+title: My life in weeks
+birthDate: 1990-04-12
+lifeExpectancy: 90
+showLabelsEvery: 5
+showDecadeGaps: true
+includeVaultEvents: true
+hiddenCategories: [sport]
+phases:
+  - label: School
+    category: education
+    startDate: 1996-09-01
+    endDate: 2008-07-15
+  - label: Career
+    category: work
+    startAge: 22
+    endAge: 65
+  - label: Later life
+    category: life
+    startAge: 65
+    endAge: 90
+    colour: "#7a5aa6"
+events:
+  - title: 🎓 Graduation
+    date: 2012-06-30
+  - title: Moved abroad
+    emoji: 🇵🇹
+    date: 2016-03-01
+    link: "[[Moving to Lisbon]]"
+```
+````
 
 ## Code block options
 
 | Option | Type | Description |
 | --- | --- | --- |
 | `title` | string | Calendar title shown above the grid. |
-| `birthDate` | `YYYY-MM-DD` | Date used to calculate completed weeks and age rows. |
-| `lifeExpectancy` | number | Number of age rows to render. |
-| `showLabelsEvery` | number | Interval for right-hand age labels. Defaults to the plugin setting, initially `5`. |
-| `showDecadeGaps` | boolean | Adds larger spacing between decades when enabled. Defaults to the plugin setting, initially `true`. |
-| `includeVaultEvents` | boolean | Includes event notes found in the vault. |
+| `birthDate` | `YYYY-MM-DD` | Date used to work out completed weeks and age rows. Required. |
+| `lifeExpectancy` | number | Number of age rows to render (1–130, default `85`). |
+| `showLabelsEvery` | number | Interval for the right-hand age labels (1–25). Defaults to the plugin setting, initially `5`. |
+| `showDecadeGaps` | boolean | Adds extra space between decades. Defaults to the plugin setting, initially `true`. |
+| `includeVaultEvents` | boolean | Includes event notes found in the vault (default `true`). |
 | `eventProperty` | string | Frontmatter property that marks event notes. Defaults to the plugin setting, initially `life-calendar-event`. |
 | `eventDateProperty` | string | Frontmatter property used as the event date. Defaults to the plugin setting, initially `date`. |
 | `eventTitleProperty` | string | Frontmatter property used as the event title. Defaults to the plugin setting, initially `title`. |
-| `phases` | list | Planning phases to render on the calendar. |
-| `visibleCategories` | list | Optional allow-list of phase categories to render. |
-| `hiddenCategories` | list | Optional block-list of phase categories to hide. |
-| `events` | list | Inline events to render as linked or unlinked markers. |
-
-## Planning phases
-
-Each phase can use either an age range or a date range:
-
-```yaml
-hiddenCategories:
-  - sport
-phases:
-  - label: Career chapter
-    category: work
-    startAge: 22
-    endAge: 55
-  - label: Example job
-    category: work
-    startDate: 2016-03-01
-    endDate: 2021-10-31
-    paletteIndex: 3
-  - label: Dormant experiment
-    category: life
-    startDate: 2021-01-01
-    endDate: 2021-06-01
-    enabled: false
-```
-
-Age ranges are useful for forward planning. Date ranges are better for schools, jobs, house moves, and other historical chapters where the actual dates matter.
-
-Colours are optional. Phases automatically cycle through 12 palette colours that adapt to light and dark mode. Add `paletteIndex` to choose one of the default palette slots, or add `colour` / `color` to override a specific phase.
-
-Categories are optional. Use `category` to group phases, `enabled: false` to suppress an individual phase, `visibleCategories` as an allow-list, and `hiddenCategories` as a block-list. When more than one category is visible, the rendered calendar also shows category checkboxes for quick local toggling.
+| `phases` | list | Planning phases: `label`, `category`, `startAge`/`endAge` **or** `startDate`/`endDate`, plus optional `colour`/`color`, `paletteIndex`, `description` and `enabled`. |
+| `visibleCategories` | list | Optional allow-list of phase categories. |
+| `hiddenCategories` | list | Optional block-list of phase categories. |
+| `events` | list | Inline events: `title`, `date`, plus optional `link` (`"[[Note]]"`), `emoji`, `description` and `category`. |
 
 ## Vault-backed event notes
 
-Any Markdown note can appear as a life calendar event if it has frontmatter like this:
+Any note becomes an event if its frontmatter has `life-calendar-event: true`, `type: life-event`, or the tag `life-calendar/event`:
 
 ```yaml
 ---
 life-calendar-event: true
-date: 2026-05-03
-title: Example event
-category: planning
+date: 2019-08-24
+title: Wedding 💍
+# optional: overrides the emoji found in the title
+emoji: 💍
 ---
 ```
 
-The plugin also recognises `type: life-event` and the tag `life-calendar/event`.
+The title comes from `title` (or the property named by `eventTitleProperty`). If that is missing, the note's file name is used.
 
-## Inline events
+## How the emoji is chosen
 
-Inline events can be added directly in the code block:
+- **Where it looks:** for each event, in this order: the `emoji` field, the title, and then (for notes only) the file name. The first emoji found wins.
+- **What counts as an emoji:** the text is split into user-perceived characters (grapheme clusters, via `Intl.Segmenter`, with a regex fallback). Multi-part emoji therefore stay whole: ZWJ sequences such as 👨‍👩‍👧‍👦 and 👩🏽‍💻, skin tones, flags such as 🇵🇹 and 🏴󠁧󠁢󠁳󠁣󠁴󠁿, keycaps such as 1️⃣, and VS16 forms such as ✈️.
+- **What is skipped:** typographic symbols written without VS16 (`©`, `®`, `™`, `‼`, `↔`, `▶`) are ignored. A bare pictograph such as `✈` or `❤` does count, and is shown in emoji style (✈️, ❤️).
+- **Several events in one week:** the week shows the emoji of the earliest event that has one. If none of them has an emoji, it shows `•`. Every event is still listed in the tooltip and the click menu, and the small corner dot for "multiple events" is kept.
 
-```yaml
-events:
-  - title: Example event
-    date: 2026-05-03
-    link: [[Example Life Event]]
+## Customising the look
+
+The emoji sits in an overlay `span.life-calendar-week-emoji` inside the event cell, which gets the classes `.has-event-emoji` and, when there is no emoji, `.has-event-fallback`. The overlay is transparent and does not capture clicks, so the tooltip, the hover zoom and the click menu work as before. Example CSS snippet:
+
+```css
+/* bigger emoji (default 0.8 = 80% of the cell width) */
+.life-calendar { --life-calendar-emoji-scale: 0.95; }
+/* colour of the fallback dot */
+.life-calendar-week.has-event-fallback .life-calendar-week-emoji { color: var(--color-red); }
 ```
 
-## Privacy and data handling
+## Privacy
 
-Life Calendar runs entirely inside Obsidian. It does not make network requests, does not use telemetry, and does not send vault content to external services.
+Everything runs inside Obsidian. The plugin makes no network requests and uses no telemetry. With vault events enabled it reads frontmatter metadata from your local vault.
 
-If vault-backed events are enabled, the plugin reads Markdown file metadata from the local vault to find matching event notes. Plugin settings are stored by Obsidian in the local plugin data file for that vault.
+## Development
 
-## Release package contents
+`main.js` is plain CommonJS that Obsidian loads directly, so there is no bundler step.
 
-A public release should include these files at the repository root:
+```sh
+npm ci
+npm run check    # node --check + TypeScript checkJs against the obsidian typings
+npm test         # node:test: emoji extraction + render/registration checks
+npm run dist     # copies the plugin files to dist/life-calendar-plus/
+```
 
-- `manifest.json`
-- `main.js`
-- `styles.css`
-- `README.md`
-- `CHANGELOG.md`
-- `versions.json`
-- `LICENSE`
+### Cutting a release
 
-Do not include local vault state such as `data.json`, `.DS_Store`, test vaults, screenshots containing private notes, or other generated local files. `data.json` is created by Obsidian for local plugin settings and is intentionally excluded from the release package.
+```sh
+npm run release -- 1.2.0     # bumps manifest/package/versions.json, runs checks, commits, tags 1.2.0
+git push origin main 1.2.0   # the tag triggers .github/workflows/release.yml
+```
+
+The workflow checks that the tag matches `manifest.json`, runs the checks, and publishes a GitHub release with `main.js`, `manifest.json` and `styles.css`, which is what BRAT installs. Tags have no `v` prefix, the same as upstream. Don't push upstream's old `1.0.0`/`1.0.1` tags, because the workflow refuses to release them.
+
+## Credits and licence
+
+Based on [paulobsf/obsidian-life-calendar](https://github.com/paulobsf/obsidian-life-calendar) by Paulo Ferreira. MIT licence; see [LICENSE](LICENSE).
