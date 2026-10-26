@@ -7,6 +7,7 @@
   --life-calendar-cell-gap: clamp(0.05rem, 0.18vw, 0.12rem);
   --life-calendar-label-width: 1.8rem;
   --life-calendar-grid-max-width: 52rem;
+  --life-calendar-emoji-scale: 0.8;
   --life-calendar-phase-palette-0: #4f6fb5;
   --life-calendar-phase-palette-1: #2f8f72;
   --life-calendar-phase-palette-2: #b8792f;
@@ -296,6 +297,98 @@ button.life-calendar-week:focus-visible {
   border-radius: 999px;
   background: var(--text-accent-hover);
   box-shadow: 0 0 0 1px var(--background-primary);
+}
+
+/* -------------------------------------------------------------------------
+ * Life Calendar Plus: emoji overlay on event weeks.
+ * The emoji sits in an absolutely positioned, transparent, click-through layer
+ * on top of the phase background, so the cell's size, border, hover zoom,
+ * tooltip and click menu are unchanged. It replaces the upstream accent dot
+ * (::after), which would sit underneath the emoji in the same tiny cell.
+ * Override in a CSS snippet, e.g.
+ *   .life-calendar { --life-calendar-emoji-scale: 0.95; }
+ *   .life-calendar-week.has-event-fallback .life-calendar-week-emoji { color: red; }
+ * ------------------------------------------------------------------------- */
+/* Each 52-week row is the size container; one cell is
+ * (row width - 51 gaps) / 52 wide, so the emoji scales with the cell. */
+.life-calendar-weeks {
+  container-type: inline-size;
+}
+
+.life-calendar-week.has-event-emoji {
+  isolation: isolate;
+}
+
+.life-calendar-week.has-event-emoji::after {
+  content: none;
+}
+
+.life-calendar-week.has-event-emoji.has-multiple-events::before {
+  z-index: 11;
+}
+
+.life-calendar-week-emoji {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: transparent;
+  pointer-events: none;
+  user-select: none;
+  color: var(--text-normal);
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", var(--font-interface), sans-serif;
+  font-size: 0.55rem;
+  font-style: normal;
+  font-weight: normal;
+  line-height: 1;
+  letter-spacing: 0;
+  text-indent: 0;
+  white-space: nowrap;
+}
+
+@supports (width: 1cqi) {
+  .life-calendar-week-emoji {
+    font-size: calc(var(--life-calendar-emoji-scale) * (100cqi - (var(--life-calendar-weeks) - 1) * var(--life-calendar-cell-gap)) / var(--life-calendar-weeks));
+  }
+}
+
+.life-calendar-week.has-event-fallback .life-calendar-week-emoji {
+  color: var(--interactive-accent);
+}
+
+/* Completed weeks are faded with `opacity`, which would also fade the emoji.
+ * For emoji cells, keep the element opaque and fade only the background,
+ * border and inset shadow by the same amount (mixing with transparent). */
+.life-calendar-week.has-event-emoji.is-completed {
+  opacity: 1;
+  border-color: color-mix(in srgb, color-mix(in srgb, var(--text-muted) 34%, var(--background-primary)) 50%, transparent);
+  background: color-mix(in srgb, color-mix(in srgb, var(--text-muted) 64%, var(--background-primary)) 50%, transparent);
+}
+
+.life-calendar-week.has-event-emoji.is-completed.has-phase {
+  opacity: 1;
+  border-color: color-mix(in srgb, color-mix(in srgb, var(--life-calendar-phase-colour) 86%, var(--background-primary)) 90%, transparent);
+  background: color-mix(in srgb, color-mix(in srgb, var(--life-calendar-phase-colour) 58%, var(--background-primary)) 90%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, color-mix(in srgb, var(--life-calendar-phase-colour) 72%, var(--background-primary)) 90%, transparent);
+}
+
+.theme-dark .life-calendar-week.has-event-emoji.is-completed.has-phase {
+  opacity: 1;
+  border-color: color-mix(in srgb, color-mix(in srgb, var(--life-calendar-phase-colour) 86%, var(--background-primary)) 95%, transparent);
+  background: color-mix(in srgb, color-mix(in srgb, var(--life-calendar-phase-colour) 44%, var(--background-primary)) 95%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, color-mix(in srgb, var(--life-calendar-phase-colour) 72%, var(--background-primary)) 95%, transparent);
+}
+
+.life-calendar-week.has-event-emoji.is-category-hidden.is-completed.has-phase {
+  opacity: 1;
+  border-color: color-mix(in srgb, color-mix(in srgb, var(--text-muted) 34%, var(--background-primary)) 50%, transparent);
+  background: color-mix(in srgb, color-mix(in srgb, var(--text-muted) 64%, var(--background-primary)) 50%, transparent);
+  box-shadow: none;
 }
 
 .life-calendar-setup,

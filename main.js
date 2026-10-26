@@ -61,28 +61,54 @@ const DEFAULT_BLOCK_CONFIG = {
   events: []
 };
 
-module.exports = class LifeCalendarPlugin extends Plugin {
+// Inserted by the "Insert life calendar block" command. Every key is one the
+// plugin really parses (see normaliseCalendarConfig / README "Code block options").
+const INSERT_BLOCK_TEMPLATE = "```life-calendar\ntitle: Life calendar\nbirthDate: YYYY-MM-DD\nlifeExpectancy: 85\nshowLabelsEvery: 5\nshowDecadeGaps: true\nincludeVaultEvents: true\n```";
+
+const EVENT_EMOJI_FALLBACK = "\u2022"; // "•"
+
+module.exports = class LifeCalendarPlusPlugin extends Plugin {
   async onload() {
-    await this.loadSettings();
+    // Life Calendar Plus: register everything synchronously *before* the first await.
+    // Upstream awaited loadSettings() first, so any rejection from loadData()
+    // (e.g. a malformed or sync-conflicted data.json) aborted onload() before the
+    // command, the code block processor and the settings tab were registered.
+    this.settings = normalisePluginSettings({});
 
     this.addCommand({
       id: "insert-life-calendar-block",
       name: "Insert life calendar block",
       editorCallback: (editor) => {
-        editor.replaceSelection(this.createExampleCodeBlock());
+        // Start the fence on its own line so it is recognised as a code block.
+        const atLineStart = editor.getCursor("from").ch === 0;
+        editor.replaceSelection(`${atLineStart ? "" : "\n"}${INSERT_BLOCK_TEMPLATE}\n`);
       }
     });
 
-    this.registerMarkdownCodeBlockProcessor("life-calendar", async (source, el, ctx) => {
-      await this.renderCodeBlock(source, el, ctx);
-    });
+    try {
+      this.registerMarkdownCodeBlockProcessor("life-calendar", async (source, el, ctx) => {
+        await this.renderCodeBlock(source, el, ctx);
+      });
+    } catch (error) {
+      // Another plugin (e.g. the upstream Life Calendar) already owns this block language.
+      console.error("[life-calendar-plus] Could not register the life-calendar code block processor.", error);
+      new Notice("Life Calendar Plus: another plugin already renders life-calendar blocks. Disable the original Life Calendar plugin.");
+    }
 
     this.addSettingTab(new LifeCalendarSettingTab(this.app, this));
+
+    this.settingsReady = this.loadSettings();
+    await this.settingsReady;
   }
 
   async loadSettings() {
-    const saved = await this.loadData();
-    this.settings = normalisePluginSettings(saved || {});
+    let saved = {};
+    try {
+      saved = (await this.loadData()) || {};
+    } catch (error) {
+      console.error("[life-calendar-plus] Could not read plugin data; using defaults.", error);
+    }
+    this.settings = normalisePluginSettings(saved);
   }
 
   async saveSettings() {
@@ -90,6 +116,7 @@ module.exports = class LifeCalendarPlugin extends Plugin {
   }
 
   async renderCodeBlock(source, el, ctx) {
+    if (this.settingsReady) await this.settingsReady;
     el.empty();
     const sourcePath = ctx && ctx.sourcePath ? ctx.sourcePath : "";
 
@@ -180,6 +207,7 @@ module.exports = class LifeCalendarPlugin extends Plugin {
           cell.setAttr("type", "button");
           cell.addClass("has-event");
           if (weekEvents.length > 1) cell.addClass("has-multiple-events");
+          renderEventEmoji(cell, weekEvents);
           this.attachEventInteraction(cell, weekEvents, sourcePath);
         }
       }
@@ -259,7 +287,7 @@ module.exports = class LifeCalendarPlugin extends Plugin {
     }
 
     if (!config.includeVaultEvents) {
-      return events;
+      return sortEventsByDate(events);
     }
 
     const files = this.app.vault.getMarkdownFiles();
@@ -282,12 +310,12 @@ module.exports = class LifeCalendarPlugin extends Plugin {
         colour: frontmatter.colour || frontmatter.color || "",
         linkText: file.path,
         sourcePath: file.path,
-        origin: "vault"
+        origin: "vault",
+        emoji: pickEventEmoji([frontmatter.emoji, title, file.basename])
       });
     }
 
-    events.sort((a, b) => parseDateOnly(a.date) - parseDateOnly(b.date));
-    return events;
+    return sortEventsByDate(events);
   }
 
   describeWeek(age, week, range, phase, events) {
@@ -360,7 +388,7 @@ class LifeCalendarSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    containerEl.createEl("h2", { text: "Life Calendar" });
+    containerEl.createEl("h2", { text: "Life Calendar Plus" });
     containerEl.createEl("p", {
       text: "Calendars are configured in life-calendar code blocks. These settings define small defaults that individual blocks can still override."
     });
@@ -536,7 +564,8 @@ function normaliseInlineEvent(eventConfig, sourcePath) {
     link: rawLink,
     linkText: parsedLink ? parsedLink.target : String(rawLink || "").trim(),
     sourcePath,
-    origin: "inline"
+    origin: "inline",
+    emoji: pickEventEmoji([eventConfig.emoji, eventConfig.title || eventConfig.name || (parsedLink && parsedLink.alias)])
   };
 }
 
@@ -577,7 +606,7 @@ function dateToPosition(date, birthDate, lifeExpectancy) {
 
   const yearStart = addYears(birthDate, age);
   const yearEnd = addYears(birthDate, age + 1);
-  const fraction = (date - yearStart) / (yearEnd - yearStart);
+  const fraction = (date.getTime() - yearStart.getTime()) / (yearEnd.getTime() - yearStart.getTime());
   const week = Math.min(WEEKS_PER_YEAR - 1, Math.max(0, Math.floor(fraction * WEEKS_PER_YEAR)));
   return { age, week };
 }
@@ -585,7 +614,7 @@ function dateToPosition(date, birthDate, lifeExpectancy) {
 function getWeekRange(birthDate, age, week) {
   const yearStart = addYears(birthDate, age);
   const yearEnd = addYears(birthDate, age + 1);
-  const duration = yearEnd - yearStart;
+  const duration = yearEnd.getTime() - yearStart.getTime();
   return {
     start: new Date(yearStart.getTime() + Math.floor((duration * week) / WEEKS_PER_YEAR)),
     end: new Date(yearStart.getTime() + Math.floor((duration * (week + 1)) / WEEKS_PER_YEAR))
@@ -795,3 +824,107 @@ function clone(value) {
   if (value === undefined) return undefined;
   return JSON.parse(JSON.stringify(value));
 }
+
+function sortEventsByDate(events) {
+  // Array.prototype.sort is stable, so same-day events keep their collection
+  // order (inline events first, then vault notes).
+  return events.sort((a, b) => parseDateOnly(a.date).getTime() - parseDateOnly(b.date).getTime());
+}
+
+// ---------------------------------------------------------------------------
+// Life Calendar Plus: emoji markers on event weeks.
+//
+// Rule: an event's emoji is the first emoji found in, in order, its explicit
+// `emoji` field (frontmatter or inline), its title, and (vault notes only) the
+// note's file name. A week with several events shows the emoji of the earliest
+// event that has one; if none has an emoji the week shows EVENT_EMOJI_FALLBACK.
+// ---------------------------------------------------------------------------
+
+const RE_PICTOGRAPHIC = /\p{Extended_Pictographic}/u;
+const RE_EMOJI_PRESENTATION = /\p{Emoji_Presentation}/u;
+const RE_REGIONAL_INDICATOR = /\p{Regional_Indicator}/gu;
+const RE_KEYCAP = /^[#*0-9]️?⃣$/u;
+// Fallback tokenizer for engines without Intl.Segmenter: flag pairs, keycaps,
+// and pictographs with VS16 / skin tones / tag sequences / ZWJ chains.
+const RE_EMOJI_SEQUENCE = /\p{Regional_Indicator}{2}|[#*0-9]️?⃣|\p{Extended_Pictographic}(?:️|\p{Emoji_Modifier}|[\u{E0020}-\u{E007F}])*(?:‍\p{Extended_Pictographic}(?:️|\p{Emoji_Modifier})*)*/gu;
+
+let graphemeSegmenter;
+
+function getGraphemeSegmenter() {
+  if (graphemeSegmenter === undefined) {
+    graphemeSegmenter = typeof Intl !== "undefined" && typeof Intl.Segmenter === "function"
+      ? new Intl.Segmenter(undefined, { granularity: "grapheme" })
+      : null;
+  }
+  return graphemeSegmenter;
+}
+
+/**
+ * Returns the emoji form of a grapheme cluster, or null if it is not an emoji.
+ * - flags: two regional indicators (not Extended_Pictographic, so checked separately)
+ * - keycaps: [#*0-9] + optional VS16 + U+20E3 (base is not pictographic either)
+ * - anything containing an Extended_Pictographic code point (ZWJ sequences,
+ *   skin tones, tag flags, VS16 variants), except a bare text-style symbol such
+ *   as © ® ™ ‼ ↔ ▶ ⬅ written without VS16. Bare text-default pictographs in
+ *   Misc Symbols / Dingbats (U+2600–U+27BF, e.g. ✈ ❤ ☀) or at U+1F000+ (e.g. 🗺 🌡)
+ *   do count and get VS16 appended so they render in emoji style.
+ */
+function emojiFromGrapheme(grapheme) {
+  if (!grapheme) return null;
+  if (RE_KEYCAP.test(grapheme)) return grapheme;
+  const regionalIndicators = grapheme.match(RE_REGIONAL_INDICATOR);
+  if (regionalIndicators && regionalIndicators.length >= 2) return grapheme;
+  if (!RE_PICTOGRAPHIC.test(grapheme)) return null;
+
+  const codePoints = Array.from(grapheme);
+  if (codePoints.length === 1 && !RE_EMOJI_PRESENTATION.test(grapheme)) {
+    const cp = grapheme.codePointAt(0);
+    const isSymbolOrDingbat = cp >= 0x2600 && cp <= 0x27bf;
+    const isSupplementaryPictograph = cp >= 0x1f000;
+    if (!isSymbolOrDingbat && !isSupplementaryPictograph) return null;
+    return `${grapheme}️`;
+  }
+  return grapheme;
+}
+
+function extractFirstEmoji(text, options = {}) {
+  if (text === undefined || text === null) return null;
+  const value = String(text);
+  if (!value) return null;
+
+  const segmenter = options.forceFallback ? null : getGraphemeSegmenter();
+  if (segmenter) {
+    for (const { segment } of segmenter.segment(value)) {
+      const emoji = emojiFromGrapheme(segment);
+      if (emoji) return emoji;
+    }
+    return null;
+  }
+
+  for (const match of value.matchAll(RE_EMOJI_SEQUENCE)) {
+    const emoji = emojiFromGrapheme(match[0]);
+    if (emoji) return emoji;
+  }
+  return null;
+}
+
+function pickEventEmoji(candidates) {
+  for (const candidate of candidates || []) {
+    const emoji = extractFirstEmoji(candidate);
+    if (emoji) return emoji;
+  }
+  return "";
+}
+
+function renderEventEmoji(cell, events) {
+  const withEmoji = events.find((event) => event && event.emoji);
+  cell.addClass("has-event-emoji");
+  if (!withEmoji) cell.addClass("has-event-fallback");
+  cell.setAttr("data-event-count", String(events.length));
+  cell.createSpan({
+    cls: "life-calendar-week-emoji",
+    text: withEmoji ? withEmoji.emoji : EVENT_EMOJI_FALLBACK,
+    attr: { "aria-hidden": "true" }
+  });
+}
+

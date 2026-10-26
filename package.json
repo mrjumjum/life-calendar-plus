@@ -1,0 +1,21 @@
+{
+  "name": "life-calendar-plus",
+  "version": "1.1.0",
+  "private": true,
+  "description": "Life Calendar Plus: fork of paulobsf/obsidian-life-calendar (no build step: main.js is the source).",
+  "license": "MIT",
+  "scripts": {
+    "check": "node --check main.js && tsc -p jsconfig.json",
+    "test": "node --test \"test/*.test.js\"",
+    "dist": "node scripts/dist.mjs",
+    "release": "node scripts/release.mjs"
+  },
+  "devDependencies": {
+    "obsidian": "^1.14.4",
+    "typescript": "^7.0.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mrjumjum/life-calendar-plus.git"
+  }
+}
