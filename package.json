@@ -1,6 +1,6 @@
 {
   "name": "life-calendar-plus",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "private": true,
   "description": "Life Calendar Plus: fork of paulobsf/obsidian-life-calendar (no build step: main.js is the source).",
   "license": "MIT",

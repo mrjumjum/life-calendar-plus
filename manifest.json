@@ -1,7 +1,7 @@
 {
   "id": "life-calendar-plus",
   "name": "Life Calendar Plus",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "minAppVersion": "1.5.0",
   "description": "Based on paulobsf's Life Calendar: life-in-weeks calendar with phases and linked events, plus emoji on event weeks and a fixed insert-block command.",
   "author": "mrjumjum (based on Life Calendar by Paulo Ferreira)",
