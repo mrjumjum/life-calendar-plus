@@ -54,6 +54,7 @@ const DEFAULT_BLOCK_CONFIG = {
   birthDate: "",
   lifeExpectancy: 85,
   includeVaultEvents: true,
+  fullWidth: true,
   ...DEFAULT_PLUGIN_SETTINGS,
   visibleCategories: [],
   hiddenCategories: [],
@@ -153,6 +154,7 @@ module.exports = class LifeCalendarPlusPlugin extends Plugin {
     const eventMap = groupEventsByPosition(events, birthDate, config.lifeExpectancy);
 
     const root = containerEl.createDiv({ cls: "life-calendar" });
+    if (config.fullWidth) root.addClass("life-calendar-full-width");
     root.style.setProperty("--life-calendar-weeks", String(WEEKS_PER_YEAR));
 
     const header = root.createDiv({ cls: "life-calendar-header" });
@@ -487,6 +489,7 @@ function normaliseCalendarConfig(blockConfig, pluginSettings = {}) {
   normalised.showLabelsEvery = clampInteger(normalised.showLabelsEvery, 1, 25, defaults.showLabelsEvery);
   normalised.showDecadeGaps = normalised.showDecadeGaps !== false;
   normalised.includeVaultEvents = normalised.includeVaultEvents !== false;
+  normalised.fullWidth = normalised.fullWidth !== false;
   normalised.visibleCategories = normaliseStringArray(normalised.visibleCategories);
   normalised.hiddenCategories = normaliseStringArray(normalised.hiddenCategories);
   normalised.phases = filterPhasesByConfig(normalisePhases(normalised.phases), normalised);

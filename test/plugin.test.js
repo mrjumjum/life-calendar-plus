@@ -100,3 +100,16 @@ test("inline-only calendars still sort events by date", async () => {
   }, "", new Date(Date.UTC(1990, 0, 1, 12)));
   assert.deepEqual(events.map((e) => e.emoji), ["🅰️", "🅱️"]);
 });
+
+test("fullWidth is on by default and can be turned off per block", async () => {
+  const { PluginClass } = loadPlugin();
+  const plugin = new PluginClass(makeApp([]), { id: "life-calendar-plus" });
+  await plugin.onload();
+  const rootOf = async (config) => {
+    const el = new FakeElement("div");
+    await plugin.processors["life-calendar"](JSON.stringify(config), el, { sourcePath: "note.md" });
+    return [...el.walk()].find((e) => e.hasClass("life-calendar"));
+  };
+  assert.ok((await rootOf({ birthDate: "1990-01-01" })).hasClass("life-calendar-full-width"));
+  assert.ok(!(await rootOf({ birthDate: "1990-01-01", fullWidth: false })).hasClass("life-calendar-full-width"));
+});

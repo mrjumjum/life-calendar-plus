@@ -7,6 +7,7 @@ An Obsidian plugin that renders a life-in-weeks (*memento mori*) calendar from a
 ## What it adds compared with Life Calendar
 
 - **Emoji on event weeks.** A week that has an event shows that event's emoji on top of the phase colour, for example `💍 Wedding` or `✈️ First flight`. Weeks with events but no emoji show a `•`.
+- **Fills the window width.** The calendar uses the whole note width and the note ignores *Readable line length*, so the squares grow with the window. Turn it off per block with `fullWidth: false`.
 - **More reliable insert command.** **Life Calendar Plus: Insert life calendar block** is registered before settings are loaded. A broken or conflicted `data.json` no longer stops the command, the code block renderer or the settings tab from loading. The block it inserts always starts on its own line.
 - **Optional `emoji` field on events.** Set it in a note's frontmatter or on an inline event to choose the emoji yourself.
 - **Inline events sorted by date.** Inline-only calendars (`includeVaultEvents: false`) now sort their events by date, so "the first event in a week" is well defined.
@@ -100,6 +101,7 @@ events:
 | `showLabelsEvery` | number | Interval for the right-hand age labels (1–25). Defaults to the plugin setting, initially `5`. |
 | `showDecadeGaps` | boolean | Adds extra space between decades. Defaults to the plugin setting, initially `true`. |
 | `includeVaultEvents` | boolean | Includes event notes found in the vault (default `true`). |
+| `fullWidth` | boolean | Fills the window width, so the squares scale with it (default `true`). The note holding the calendar ignores Obsidian's *Readable line length*. Set `false` for the original fixed-width grid. |
 | `eventProperty` | string | Frontmatter property that marks event notes. Defaults to the plugin setting, initially `life-calendar-event`. |
 | `eventDateProperty` | string | Frontmatter property used as the event date. Defaults to the plugin setting, initially `date`. |
 | `eventTitleProperty` | string | Frontmatter property used as the event title. Defaults to the plugin setting, initially `title`. |

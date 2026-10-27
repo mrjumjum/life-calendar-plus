@@ -147,6 +147,17 @@
   background: var(--interactive-accent);
 }
 
+/* Life Calendar Plus: fullWidth (default true). The grid fills the note, and the note holding it ignores
+ * Obsidian's "Readable line length" so the squares scale with the window. Other notes are unaffected. */
+.life-calendar.life-calendar-full-width {
+  --life-calendar-grid-max-width: none;
+}
+
+.markdown-preview-view.is-readable-line-width:has(.life-calendar-full-width),
+.markdown-source-view.is-readable-line-width:has(.life-calendar-full-width) {
+  --file-line-width: 100%;
+}
+
 .life-calendar-grid {
   overflow-x: visible;
   padding-block: 0.25rem 0.5rem;
