@@ -96,6 +96,12 @@ module.exports = class LifeCalendarPlusPlugin extends Plugin {
 
     this.addSettingTab(new LifeCalendarSettingTab(this.app, this));
 
+    // Life Calendar Plus: open calendars redraw when event notes are added, edited, renamed or
+    // deleted (e.g. by a sync), not only when their note is opened.
+    this.liveCalendars = new Map(); // code block element -> { source, ctx, config }
+    this.eventPaths = new Set();    // vault notes that were events at the last render
+    this.watchEventNotes();
+
     this.settingsReady = this.loadSettings();
     await this.settingsReady;
   }
@@ -114,8 +120,45 @@ module.exports = class LifeCalendarPlusPlugin extends Plugin {
     await this.saveData(this.settings);
   }
 
+  watchEventNotes() {
+    const { vault, metadataCache } = this.app;
+    if (!vault || typeof vault.on !== "function" || !metadataCache || typeof metadataCache.on !== "function") return;
+    const isEventNow = (frontmatter) => Boolean(frontmatter) &&
+      (isLifeCalendarEvent(frontmatter, this.settings || {}) ||
+        [...this.liveCalendars.values()].some((entry) => entry.config && isLifeCalendarEvent(frontmatter, entry.config)));
+    const touched = (path, frontmatter) => {
+      if (this.eventPaths.has(path) || isEventNow(frontmatter)) this.scheduleCalendarRefresh();
+    };
+    this.registerEvent(metadataCache.on("changed", (file, _data, cache) => touched(file.path, cache && cache.frontmatter)));
+    this.registerEvent(vault.on("delete", (file) => touched(file.path, null)));
+    this.registerEvent(vault.on("rename", (file, oldPath) => {
+      const cache = metadataCache.getFileCache(/** @type {import("obsidian").TFile} */ (file)); // null for folders
+      touched(oldPath, null);
+      touched(file.path, cache && cache.frontmatter);
+    }));
+    this.register(() => clearTimeout(this.refreshTimer));
+  }
+
+  /** Coalesces bursts (a sync touching many notes) into one redraw. */
+  scheduleCalendarRefresh() {
+    clearTimeout(this.refreshTimer);
+    this.refreshTimer = setTimeout(() => this.refreshCalendars(), 400);
+  }
+
+  async refreshCalendars() {
+    this.eventPaths.clear(); // rebuilt by the renders below
+    for (const [el, entry] of [...this.liveCalendars]) {
+      if (el.isConnected === false) {
+        this.liveCalendars.delete(el); // its note was closed
+        continue;
+      }
+      await this.renderCodeBlock(entry.source, el, entry.ctx);
+    }
+  }
+
   async renderCodeBlock(source, el, ctx) {
     if (this.settingsReady) await this.settingsReady;
+    if (this.liveCalendars) this.liveCalendars.set(el, { source, ctx, config: null });
     el.empty();
     const sourcePath = ctx && ctx.sourcePath ? ctx.sourcePath : "";
 
@@ -135,6 +178,8 @@ module.exports = class LifeCalendarPlusPlugin extends Plugin {
     containerEl.addClass("life-calendar-container");
 
     const config = normaliseCalendarConfig(blockConfig, this.settings);
+    const live = this.liveCalendars && this.liveCalendars.get(containerEl);
+    if (live) live.config = config;
     const birthDate = parseDateOnly(config.birthDate);
 
     if (!birthDate) {
@@ -295,6 +340,7 @@ module.exports = class LifeCalendarPlusPlugin extends Plugin {
       const cache = this.app.metadataCache.getFileCache(file);
       const frontmatter = cache && cache.frontmatter;
       if (!frontmatter || !isLifeCalendarEvent(frontmatter, config)) continue;
+      if (this.eventPaths) this.eventPaths.add(file.path);
 
       const rawDate = frontmatter[config.eventDateProperty] || frontmatter.date || frontmatter.startDate;
       const eventDate = parseDateOnly(rawDate);

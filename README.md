@@ -8,6 +8,7 @@ An Obsidian plugin that renders a life-in-weeks (*memento mori*) calendar from a
 
 - **Emoji on event weeks.** A week that has an event shows that event's emoji in place of the square, drawn a pixel larger so it stands out, for example `💍 Wedding` or `✈️ First flight`. Weeks whose events have no emoji keep the normal square with the small corner dot, as in the original.
 - **Fills the window width.** The calendar uses the whole note width and the note ignores *Readable line length*, so the squares grow with the window. Turn it off per block with `fullWidth: false`.
+- **Live updates.** Open calendars redraw when event notes are added, edited, renamed or deleted, for example by a sync. Upstream only draws when the note is opened.
 - **More reliable insert command.** **Life Calendar Plus: Insert life calendar block** is registered before settings are loaded. A broken or conflicted `data.json` no longer stops the command, the code block renderer or the settings tab from loading. The block it inserts always starts on its own line.
 - **Optional `emoji` field on events.** Set it in a note's frontmatter or on an inline event to choose the emoji yourself.
 - **Inline events sorted by date.** Inline-only calendars (`includeVaultEvents: false`) now sort their events by date, so "the first event in a week" is well defined.

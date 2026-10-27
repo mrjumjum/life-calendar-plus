@@ -50,6 +50,8 @@ function loadPlugin({ loadData } = {}) {
       addCommand(cmd) { this.commands.push(cmd); return cmd; }
       registerMarkdownCodeBlockProcessor(lang, fn) { this.processors[lang] = fn; }
       addSettingTab() {}
+      registerEvent() {}
+      register() {}
       loadData() { return loadData ? loadData() : Promise.resolve(null); }
       saveData() { return Promise.resolve(); }
     },

@@ -115,3 +115,47 @@ test("fullWidth is on by default and can be turned off per block", async () => {
   assert.ok((await rootOf({ birthDate: "1990-01-01" })).hasClass("life-calendar-full-width"));
   assert.ok(!(await rootOf({ birthDate: "1990-01-01", fullWidth: false })).hasClass("life-calendar-full-width"));
 });
+
+test("open calendars redraw when event notes are deleted, added or renamed", async () => {
+  const notes = [
+    { file: { path: "a.md", basename: "a" }, frontmatter: { "life-calendar-event": true, date: "2010-05-03", title: "A", emoji: "🎓" } },
+    { file: { path: "b.md", basename: "b" }, frontmatter: { "life-calendar-event": true, date: "2010-05-04", title: "B dup" } }
+  ];
+  const handlers = {};
+  const on = (name, fn) => { handlers[name] = fn; return { name }; };
+  const app = {
+    vault: { getMarkdownFiles: () => notes.map((n) => n.file), on },
+    metadataCache: { getFileCache: (f) => ({ frontmatter: (notes.find((n) => n.file === f) || {}).frontmatter }), on },
+    workspace: { openLinkText() {} }
+  };
+  const { PluginClass } = loadPlugin();
+  const plugin = new PluginClass(app, { id: "life-calendar-plus" });
+  await plugin.onload();
+  const el = new FakeElement("div");
+  await plugin.processors["life-calendar"](JSON.stringify({ birthDate: "1990-01-01" }), el, { sourcePath: "cal.md" });
+  const shared = () => [...el.walk()].filter((e) => e.hasClass("has-multiple-events")).length;
+  const eventWeeks = () => [...el.walk()].filter((e) => e.hasClass("has-event")).length;
+  assert.equal(shared(), 1, "two events in one week");
+
+  // A sync deletes the duplicate.
+  const dup = notes.pop();
+  handlers.delete(dup.file);
+  await new Promise((r) => setTimeout(r, 450));
+  assert.equal(shared(), 0, "redrawn without the deleted note");
+
+  // A new event note arrives.
+  const c = { file: { path: "c.md", basename: "c" }, frontmatter: { "life-calendar-event": true, date: "2015-01-05", title: "C" } };
+  notes.push(c);
+  handlers.changed(c.file, "", { frontmatter: c.frontmatter });
+  await new Promise((r) => setTimeout(r, 450));
+  assert.equal(eventWeeks(), 2);
+
+  // Unrelated notes don't trigger a redraw.
+  let renders = 0;
+  const orig = plugin.renderCodeBlock.bind(plugin);
+  plugin.renderCodeBlock = (...args) => { renders++; return orig(...args); };
+  handlers.changed({ path: "todo.md" }, "", { frontmatter: { tags: ["todo"] } });
+  handlers.delete({ path: "other.md" });
+  await new Promise((r) => setTimeout(r, 450));
+  assert.equal(renders, 0);
+});
