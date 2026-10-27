@@ -66,8 +66,6 @@ const DEFAULT_BLOCK_CONFIG = {
 // plugin really parses (see normaliseCalendarConfig / README "Code block options").
 const INSERT_BLOCK_TEMPLATE = "```life-calendar\ntitle: Life calendar\nbirthDate: YYYY-MM-DD\nlifeExpectancy: 85\nshowLabelsEvery: 5\nshowDecadeGaps: true\nincludeVaultEvents: true\n```";
 
-const EVENT_EMOJI_FALLBACK = "\u2022"; // "•"
-
 module.exports = class LifeCalendarPlusPlugin extends Plugin {
   async onload() {
     // Life Calendar Plus: register everything synchronously *before* the first await.
@@ -840,7 +838,8 @@ function sortEventsByDate(events) {
 // Rule: an event's emoji is the first emoji found in, in order, its explicit
 // `emoji` field (frontmatter or inline), its title, and (vault notes only) the
 // note's file name. A week with several events shows the emoji of the earliest
-// event that has one; if none has an emoji the week shows EVENT_EMOJI_FALLBACK.
+// event that has one. If none has an emoji, the week is left as upstream draws
+// it: the phase square with the small accent dot in the corner.
 // ---------------------------------------------------------------------------
 
 const RE_PICTOGRAPHIC = /\p{Extended_Pictographic}/u;
@@ -921,12 +920,12 @@ function pickEventEmoji(candidates) {
 
 function renderEventEmoji(cell, events) {
   const withEmoji = events.find((event) => event && event.emoji);
+  if (!withEmoji) return;
   cell.addClass("has-event-emoji");
-  if (!withEmoji) cell.addClass("has-event-fallback");
   cell.setAttr("data-event-count", String(events.length));
   cell.createSpan({
     cls: "life-calendar-week-emoji",
-    text: withEmoji ? withEmoji.emoji : EVENT_EMOJI_FALLBACK,
+    text: withEmoji.emoji,
     attr: { "aria-hidden": "true" }
   });
 }

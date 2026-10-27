@@ -66,8 +66,8 @@ test("renders emoji overlays on event weeks only", async () => {
 
   const emojiCells = cells.filter((c) => c.hasClass("has-event-emoji"));
   const overlays = all.filter((e) => e.hasClass("life-calendar-week-emoji"));
-  assert.equal(emojiCells.length, 5, "5 event weeks (two events share one week)");
-  assert.equal(overlays.length, 5);
+  assert.equal(emojiCells.length, 4, "4 event weeks with an emoji (two events share one week)");
+  assert.equal(overlays.length, 4);
   for (const cell of emojiCells) {
     assert.equal(cell.tagName, "BUTTON");
     assert.ok(cell.hasClass("has-event"));
@@ -75,16 +75,18 @@ test("renders emoji overlays on event weeks only", async () => {
     assert.equal(overlay.attrs["aria-hidden"], "true");
   }
   const glyphs = emojiCells.map((c) => c.children[0].text).sort();
-  assert.deepEqual(glyphs, ["✈️", "•", "🎂", "🎓", "💍"].sort());
+  assert.deepEqual(glyphs, ["✈️", "🎂", "🎓", "💍"].sort());
 
   const shared = emojiCells.find((c) => c.hasClass("has-multiple-events"));
   assert.equal(shared.children[0].text, "💍", "first event *with* an emoji wins");
   assert.equal(shared.attrs["data-event-count"], "2");
   assert.ok(shared.hasClass("has-phase"), "emoji cell keeps its phase class/background");
 
-  const fallback = emojiCells.find((c) => c.hasClass("has-event-fallback"));
-  assert.equal(fallback.children[0].text, "•");
-  assert.match(fallback.attrs["aria-label"], /No emoji here/);
+  // No emoji: the week stays a normal event square (upstream accent dot, no overlay).
+  const noEmoji = cells.find((c) => /No emoji here/.test(c.attrs["aria-label"] || ""));
+  assert.ok(noEmoji.hasClass("has-event"));
+  assert.ok(!noEmoji.hasClass("has-event-emoji"));
+  assert.equal(noEmoji.children.length, 0);
 
   const plain = cells.filter((c) => !c.hasClass("has-event"));
   assert.ok(plain.every((c) => c.children.length === 0 && c.tagName === "DIV"));

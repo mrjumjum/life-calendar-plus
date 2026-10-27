@@ -63,7 +63,7 @@ function loadPlugin({ loadData } = {}) {
   const source = readFileSync(join(__dirname, "..", "main.js"), "utf8");
   const module = { exports: {} };
   const factory = new Function("require", "module", "exports",
-    `${source}\nreturn { extractFirstEmoji, emojiFromGrapheme, pickEventEmoji, EVENT_EMOJI_FALLBACK, INSERT_BLOCK_TEMPLATE };`);
+    `${source}\nreturn { extractFirstEmoji, emojiFromGrapheme, pickEventEmoji, INSERT_BLOCK_TEMPLATE };`);
   const internals = factory((name) => {
     if (name === "obsidian") return obsidian;
     throw new Error(`unexpected require(${name})`);

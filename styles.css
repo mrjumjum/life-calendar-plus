@@ -319,7 +319,6 @@ button.life-calendar-week:focus-visible {
  * stands out. It replaces the upstream accent dot (::after).
  * Override in a CSS snippet, e.g.
  *   .life-calendar { --life-calendar-emoji-scale: 0.9; --life-calendar-emoji-extra: 0px; }
- *   .life-calendar-week.has-event-fallback .life-calendar-week-emoji { color: red; }
  * ------------------------------------------------------------------------- */
 /* Each 52-week row is the size container; one cell is
  * (row width - 51 gaps) / 52 wide, so the emoji scales with the cell. */
@@ -369,9 +368,6 @@ button.life-calendar-week:focus-visible {
   }
 }
 
-.life-calendar-week.has-event-fallback .life-calendar-week-emoji {
-  color: var(--interactive-accent);
-}
 
 /* No square behind the emoji, in every state (phase, completed, hidden category,
  * dark theme), and no fade on past weeks. The selectors mirror the base cell

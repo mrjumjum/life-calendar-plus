@@ -6,7 +6,7 @@ An Obsidian plugin that renders a life-in-weeks (*memento mori*) calendar from a
 
 ## What it adds compared with Life Calendar
 
-- **Emoji on event weeks.** A week that has an event shows that event's emoji in place of the square, drawn a pixel larger so it stands out, for example `💍 Wedding` or `✈️ First flight`. Weeks with events but no emoji show a `•`.
+- **Emoji on event weeks.** A week that has an event shows that event's emoji in place of the square, drawn a pixel larger so it stands out, for example `💍 Wedding` or `✈️ First flight`. Weeks whose events have no emoji keep the normal square with the small corner dot, as in the original.
 - **Fills the window width.** The calendar uses the whole note width and the note ignores *Readable line length*, so the squares grow with the window. Turn it off per block with `fullWidth: false`.
 - **More reliable insert command.** **Life Calendar Plus: Insert life calendar block** is registered before settings are loaded. A broken or conflicted `data.json` no longer stops the command, the code block renderer or the settings tab from loading. The block it inserts always starts on its own line.
 - **Optional `emoji` field on events.** Set it in a note's frontmatter or on an inline event to choose the emoji yourself.
@@ -131,17 +131,15 @@ The title comes from `title` (or the property named by `eventTitleProperty`). If
 - **Where it looks:** for each event, in this order: the `emoji` field, the title, and then (for notes only) the file name. The first emoji found wins.
 - **What counts as an emoji:** the text is split into user-perceived characters (grapheme clusters, via `Intl.Segmenter`, with a regex fallback). Multi-part emoji therefore stay whole: ZWJ sequences such as 👨‍👩‍👧‍👦 and 👩🏽‍💻, skin tones, flags such as 🇵🇹 and 🏴󠁧󠁢󠁳󠁣󠁴󠁿, keycaps such as 1️⃣, and VS16 forms such as ✈️.
 - **What is skipped:** typographic symbols written without VS16 (`©`, `®`, `™`, `‼`, `↔`, `▶`) are ignored. A bare pictograph such as `✈` or `❤` does count, and is shown in emoji style (✈️, ❤️).
-- **Several events in one week:** the week shows the emoji of the earliest event that has one. If none of them has an emoji, it shows `•`. Every event is still listed in the tooltip and the click menu, and the small corner dot for "multiple events" is kept.
+- **Several events in one week:** the week shows the emoji of the earliest event that has one. If none of them has an emoji, the week keeps its square and the original corner dot. Every event is still listed in the tooltip and the click menu, and the small corner dot for "multiple events" is kept.
 
 ## Customising the look
 
-The emoji sits in an overlay `span.life-calendar-week-emoji` inside the event cell, which gets the classes `.has-event-emoji` and, when there is no emoji, `.has-event-fallback`. The cell itself is drawn without fill, border or fade, so the emoji takes the square's place. The overlay is transparent and does not capture clicks, so the tooltip, the hover zoom and the click menu work as before. Example CSS snippet:
+The emoji sits in an overlay `span.life-calendar-week-emoji` inside the event cell, which gets the class `.has-event-emoji`. Event weeks without an emoji are drawn exactly as in the original plugin. The cell itself is drawn without fill, border or fade, so the emoji takes the square's place. The overlay is transparent and does not capture clicks, so the tooltip, the hover zoom and the click menu work as before. Example CSS snippet:
 
 ```css
 /* emoji size = scale × cell width + extra (defaults 1 and 2px, i.e. about 1px past each edge) */
 .life-calendar { --life-calendar-emoji-scale: 0.9; --life-calendar-emoji-extra: 0px; }
-/* colour of the fallback dot */
-.life-calendar-week.has-event-fallback .life-calendar-week-emoji { color: var(--color-red); }
 ```
 
 ## Privacy
