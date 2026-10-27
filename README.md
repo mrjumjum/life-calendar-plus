@@ -6,7 +6,7 @@ An Obsidian plugin that renders a life-in-weeks (*memento mori*) calendar from a
 
 ## What it adds compared with Life Calendar
 
-- **Emoji on event weeks.** A week that has an event shows that event's emoji on top of the phase colour, for example `💍 Wedding` or `✈️ First flight`. Weeks with events but no emoji show a `•`.
+- **Emoji on event weeks.** A week that has an event shows that event's emoji in place of the square, drawn a pixel larger so it stands out, for example `💍 Wedding` or `✈️ First flight`. Weeks with events but no emoji show a `•`.
 - **Fills the window width.** The calendar uses the whole note width and the note ignores *Readable line length*, so the squares grow with the window. Turn it off per block with `fullWidth: false`.
 - **More reliable insert command.** **Life Calendar Plus: Insert life calendar block** is registered before settings are loaded. A broken or conflicted `data.json` no longer stops the command, the code block renderer or the settings tab from loading. The block it inserts always starts on its own line.
 - **Optional `emoji` field on events.** Set it in a note's frontmatter or on an inline event to choose the emoji yourself.
@@ -135,11 +135,11 @@ The title comes from `title` (or the property named by `eventTitleProperty`). If
 
 ## Customising the look
 
-The emoji sits in an overlay `span.life-calendar-week-emoji` inside the event cell, which gets the classes `.has-event-emoji` and, when there is no emoji, `.has-event-fallback`. The overlay is transparent and does not capture clicks, so the tooltip, the hover zoom and the click menu work as before. Example CSS snippet:
+The emoji sits in an overlay `span.life-calendar-week-emoji` inside the event cell, which gets the classes `.has-event-emoji` and, when there is no emoji, `.has-event-fallback`. The cell itself is drawn without fill, border or fade, so the emoji takes the square's place. The overlay is transparent and does not capture clicks, so the tooltip, the hover zoom and the click menu work as before. Example CSS snippet:
 
 ```css
-/* bigger emoji (default 0.8 = 80% of the cell width) */
-.life-calendar { --life-calendar-emoji-scale: 0.95; }
+/* emoji size = scale × cell width + extra (defaults 1 and 2px, i.e. about 1px past each edge) */
+.life-calendar { --life-calendar-emoji-scale: 0.9; --life-calendar-emoji-extra: 0px; }
 /* colour of the fallback dot */
 .life-calendar-week.has-event-fallback .life-calendar-week-emoji { color: var(--color-red); }
 ```
