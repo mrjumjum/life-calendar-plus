@@ -77,6 +77,10 @@ phases:
     category: work
     startAge: 22
     endAge: 65
+  - label: Current job
+    category: work
+    startDate: 2024-02-01
+    endDate: ongoing   # fills up to this week; set a real date when it ends
   - label: Later life
     category: life
     startAge: 65
@@ -106,7 +110,7 @@ events:
 | `eventProperty` | string | Frontmatter property that marks event notes. Defaults to the plugin setting, initially `life-calendar-event`. |
 | `eventDateProperty` | string | Frontmatter property used as the event date. Defaults to the plugin setting, initially `date`. |
 | `eventTitleProperty` | string | Frontmatter property used as the event title. Defaults to the plugin setting, initially `title`. |
-| `phases` | list | Planning phases: `label`, `category`, `startAge`/`endAge` **or** `startDate`/`endDate`, plus optional `colour`/`color`, `paletteIndex`, `description` and `enabled`. |
+| `phases` | list | Planning phases: `label`, `category`, `startAge`/`endAge` **or** `startDate`/`endDate`, plus optional `colour`/`color`, `paletteIndex`, `description` and `enabled`. Use `endDate: ongoing` (or `endAge: ongoing`) for a phase that hasn't ended: it fills up to the current week and grows each week. |
 | `visibleCategories` | list | Optional allow-list of phase categories. |
 | `hiddenCategories` | list | Optional block-list of phase categories. |
 | `events` | list | Inline events: `title`, `date`, plus optional `link` (`"[[Note]]"`), `emoji`, `description` and `category`. |

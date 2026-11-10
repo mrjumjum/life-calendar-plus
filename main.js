@@ -228,7 +228,7 @@ module.exports = class LifeCalendarPlusPlugin extends Plugin {
         const range = getWeekRange(birthDate, age, week);
         const isCompleted = range.end <= today;
         const isCurrent = range.start <= today && today < range.end;
-        const phase = findPhaseForWeek(config.phases, age, week, range.start, range.end);
+        const phase = findPhaseForWeek(config.phases, age, week, range.start, range.end, today);
         const cell = weeks.createEl(weekEvents.length ? "button" : "div", {
           cls: "life-calendar-week"
         });
@@ -553,7 +553,13 @@ function normalisePhases(phases) {
       const parsedEndDate = parseDateOnly(endDate);
       const hasAgeRange = Number.isFinite(startAge) && Number.isFinite(endAge) && endAge > startAge;
       const hasDateRange = parsedStartDate && parsedEndDate && parsedEndDate > parsedStartDate;
-      if (!hasAgeRange && !hasDateRange) return null;
+      // Ongoing: `endDate: ongoing` (or `endAge: ongoing`, or `ongoing: true`) with no real end.
+      // The phase is then drawn from its start up to the current week, and grows each week.
+      const ongoing = !hasAgeRange && !hasDateRange &&
+        (isOngoingValue(phase.endDate ?? phase.end_date ?? phase.endAge ?? phase.end ?? phase.to) || phase.ongoing === true) &&
+        Boolean(parsedStartDate || Number.isFinite(startAge));
+      if (!hasAgeRange && !hasDateRange && !ongoing) return null;
+      const ongoingByDate = ongoing && Boolean(parsedStartDate);
 
       const rawColour = phase.colour || phase.color || "";
       const parsedPaletteIndex = Number.parseInt(phase.paletteIndex ?? phase.palette ?? index, 10);
@@ -562,9 +568,10 @@ function normalisePhases(phases) {
         label: String(phase.label || phase.name || "Phase"),
         category: String(phase.category || phase.group || "uncategorised"),
         enabled: phase.enabled !== false && phase.disabled !== true,
-        startAge: hasAgeRange ? startAge : null,
+        ongoing,
+        startAge: hasAgeRange || (ongoing && !ongoingByDate) ? startAge : null,
         endAge: hasAgeRange ? endAge : null,
-        startDate: hasDateRange ? formatDate(parsedStartDate) : "",
+        startDate: hasDateRange || ongoingByDate ? formatDate(parsedStartDate) : "",
         endDate: hasDateRange ? formatDate(parsedEndDate) : "",
         colour: rawColour ? String(rawColour) : "",
         paletteIndex: Number.isFinite(parsedPaletteIndex) ? parsedPaletteIndex : index,
@@ -668,10 +675,23 @@ function getWeekRange(birthDate, age, week) {
   };
 }
 
-function findPhaseForWeek(phases, age, week, startDate, endDate) {
+function isOngoingValue(value) {
+  return typeof value === "string" && /^(ongoing|present|now)$/i.test(value.trim());
+}
+
+function findPhaseForWeek(phases, age, week, startDate, endDate, today) {
   const ageValue = age + week / WEEKS_PER_YEAR;
   return phases.find((phase) => {
     if (!phase) return false;
+    if (phase.ongoing) {
+      // Up to and including the current week; never into the future.
+      if (!today || startDate > today) return false;
+      if (phase.startDate) {
+        const phaseStart = parseDateOnly(phase.startDate);
+        return Boolean(phaseStart) && endDate > phaseStart;
+      }
+      return Number.isFinite(phase.startAge) && ageValue >= phase.startAge;
+    }
     if (Number.isFinite(phase.startAge) && Number.isFinite(phase.endAge)) {
       return ageValue >= phase.startAge && ageValue < phase.endAge;
     }
@@ -784,6 +804,12 @@ function phasesToYaml(phases) {
     } else if (phase.startDate && phase.endDate) {
       lines.push(`    startDate: ${quoteYamlString(phase.startDate)}`);
       lines.push(`    endDate: ${quoteYamlString(phase.endDate)}`);
+    } else if (phase.ongoing && phase.startDate) {
+      lines.push(`    startDate: ${quoteYamlString(phase.startDate)}`);
+      lines.push("    endDate: ongoing");
+    } else if (phase.ongoing && Number.isFinite(phase.startAge)) {
+      lines.push(`    startAge: ${phase.startAge}`);
+      lines.push("    endAge: ongoing");
     }
     if (phase.colour || phase.color) lines.push(`    colour: ${quoteYamlString(phase.colour || phase.color)}`);
     if (Number.isFinite(phase.paletteIndex)) lines.push(`    paletteIndex: ${phase.paletteIndex}`);
@@ -842,6 +868,9 @@ function describePhase(phase) {
 
 function formatPhaseRange(phase) {
   if (!phase) return "Unknown";
+  if (phase.ongoing) {
+    return phase.startDate ? `${phase.startDate} to now (ongoing)` : `age ${phase.startAge} to now (ongoing)`;
+  }
   if (Number.isFinite(phase.startAge) && Number.isFinite(phase.endAge)) {
     return `age ${phase.startAge} to ${phase.endAge}`;
   }

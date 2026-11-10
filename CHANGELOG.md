@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.4
+
+- Ongoing phases: `endDate: ongoing` (or `endAge: ongoing`, or `ongoing: true`) draws a phase from its start up to the current week, and it grows each week. Tooltips show "to now (ongoing)". `present` and `now` work as well as `ongoing`.
+- A phase with a start but no end at all is still skipped, as before, and a real end date wins over `ongoing: true`.
+
 ## 1.1.0 (Life Calendar Plus)
 
 First release of the fork, based on Life Calendar 1.0.1 by Paulo Ferreira.

@@ -159,3 +159,41 @@ test("open calendars redraw when event notes are deleted, added or renamed", asy
   await new Promise((r) => setTimeout(r, 450));
   assert.equal(renders, 0);
 });
+
+test("ongoing phases fill up to the current week and no further", async () => {
+  const { PluginClass } = loadPlugin();
+  const plugin = new PluginClass(makeApp([]), { id: "life-calendar-plus" });
+  await plugin.onload();
+  const weeksOf = async (phase) => {
+    const el = new FakeElement("div");
+    const config = { birthDate: "1990-01-01", lifeExpectancy: 90, includeVaultEvents: false, phases: [phase] };
+    await plugin.processors["life-calendar"](JSON.stringify(config), el, { sourcePath: "note.md" });
+    return [...el.walk()].filter((e) => e.hasClass("life-calendar-week"));
+  };
+  const ago = new Date(Date.now() - 120 * 864e5).toISOString().slice(0, 10);
+
+  for (const phase of [
+    { label: "Job", startDate: ago, endDate: "ongoing" },
+    { label: "Job", startDate: ago, ongoing: true },
+    { label: "Job", startAge: 30, endAge: "ongoing" }
+  ]) {
+    const weeks = await weeksOf(phase);
+    const phased = weeks.filter((w) => w.hasClass("has-phase"));
+    const current = weeks.findIndex((w) => w.hasClass("is-current"));
+    assert.ok(phased.length > 0, `phase drawn: ${JSON.stringify(phase)}`);
+    assert.ok(weeks[current].hasClass("has-phase"), "the current week is included");
+    assert.ok(phased.every((w) => w.hasClass("is-completed") || w.hasClass("is-current")), "nothing in the future");
+    assert.ok(!weeks[current + 1].hasClass("has-phase"), "next week is not filled yet");
+    assert.match(phased[0].getAttribute("data-tooltip"), /to now \(ongoing\)/);
+  }
+
+  // The date-based phase starts about 17 weeks ago; the age-based one fills every week from age 30.
+  const byDate = (await weeksOf({ label: "Job", startDate: ago, endDate: "ongoing" })).filter((w) => w.hasClass("has-phase"));
+  assert.ok(byDate.length >= 17 && byDate.length <= 19, `about 17-18 weeks, got ${byDate.length}`);
+
+  // A phase with a start but no end at all is still skipped, as before.
+  assert.equal((await weeksOf({ label: "Job", startDate: ago })).filter((w) => w.hasClass("has-phase")).length, 0);
+  // A real end date wins over ongoing: true.
+  const ended = (await weeksOf({ label: "Old", startDate: "2000-01-01", endDate: "2001-01-01", ongoing: true })).filter((w) => w.hasClass("has-phase"));
+  assert.ok(ended.length >= 52 && ended.length <= 53);
+});
